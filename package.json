@@ -16,8 +16,8 @@
     "@gsap/react": "^2.1.2",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
-    "@studio-freight/react-lenis": "^0.0.47",
     "@types/three": "^0.182.0",
+    "@upstash/redis": "^1.38.1",
     "axios": "^1.14.0",
     "cheerio": "^1.2.0",
     "fluid-canvas": "^0.9.3",
@@ -39,6 +39,7 @@
     "react-smokey-fluid-cursor": "^1.0.4",
     "react-toastify": "^11.0.5",
     "recharts": "^3.10.1",
+    "redis": "^6.2.0",
     "three": "^0.182.0",
     "yup": "^1.7.1"
   },

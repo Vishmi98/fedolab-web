@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
+import { deleteCache } from "@/lib/cache";
 import { ImageKitService } from "@/services/imagekit";
 import { sendErrorResponse, sendSuccessResponse } from "@/services/apiResponse";
 import BlogModel from "@/models/blog.model";
@@ -27,15 +28,19 @@ export async function POST(req: NextRequest) {
       return sendErrorResponse("All fields are required", 200);
     }
 
-    // ✅ Initialize image variables
     let coverImagePath = "";
     let coverImageId = "";
 
-    // ✅ Upload cover image if provided
     if (coverImage) {
       const buffer = Buffer.from(await coverImage.arrayBuffer());
       const filename = `${Date.now()}-${coverImage.name}`;
-      const uploaded = await ImageKitService.uploadImage(buffer, filename, "fedo_blogs/covers");
+
+      const uploaded = await ImageKitService.uploadImage(
+        buffer,
+        filename,
+        "fedo_blogs/covers"
+      );
+
       coverImagePath = uploaded.url;
       coverImageId = uploaded.fileId;
     }
@@ -56,9 +61,20 @@ export async function POST(req: NextRequest) {
       coverImageId,
     });
 
+    // ==========================
+    // Clear Redis cache
+    // ==========================
+    await deleteCache("blogs:published");
+    await deleteCache(`blog:url:${url}`);
+
     return sendSuccessResponse("Blog Created Successfully", { blog });
+
   } catch (error: any) {
     console.error("Error creating blog:", error);
-    return sendErrorResponse(error?.message || "Unexpected error", 200);
+
+    return sendErrorResponse(
+      error?.message || "Unexpected error",
+      200
+    );
   }
 }
