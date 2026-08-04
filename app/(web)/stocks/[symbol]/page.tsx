@@ -177,12 +177,12 @@ export default function StockDetailPage({
               <BarChart2 className="w-5 h-5 text-blue-600" /> Share Price Chart
             </h2>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-row sm:items-center gap-3 w-full">
               {/* Chart Mode Switcher */}
-              <div className="flex items-center bg-gray-100 p-1 rounded-xl">
+              <div className="flex items-center bg-gray-100 p-1 rounded-xl w-fit">
                 <button
                   onClick={() => setChartType('line')}
-                  className={`p-1.5 text-xs font-semibold rounded-lg transition ${chartType === 'line'
+                  className={`p-2 rounded-lg transition ${chartType === 'line'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-500 hover:text-gray-900'
                     }`}
@@ -190,9 +190,10 @@ export default function StockDetailPage({
                 >
                   <LineChartIcon className="w-4 h-4" />
                 </button>
+
                 <button
                   onClick={() => setChartType('candlestick')}
-                  className={`p-1.5 text-xs font-semibold rounded-lg transition ${chartType === 'candlestick'
+                  className={`p-2 rounded-lg transition ${chartType === 'candlestick'
                       ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-500 hover:text-gray-900'
                     }`}
@@ -202,20 +203,22 @@ export default function StockDetailPage({
                 </button>
               </div>
 
-              {/* Timeframe Selector Buttons */}
-              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
-                {PERIODS.map((period) => (
-                  <button
-                    key={period}
-                    onClick={() => setSelectedPeriod(period)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition uppercase ${selectedPeriod === period
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-900'
-                      }`}
-                  >
-                    {period}
-                  </button>
-                ))}
+              {/* Timeframe Selector */}
+              <div className="flex-1 overflow-x-auto scrollbar-hide">
+                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-max min-w-full sm:min-w-0">
+                  {PERIODS.map((period) => (
+                    <button
+                      key={period}
+                      onClick={() => setSelectedPeriod(period)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition uppercase whitespace-nowrap ${selectedPeriod === period
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-900'
+                        }`}
+                    >
+                      {period}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
