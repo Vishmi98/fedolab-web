@@ -2,7 +2,7 @@
 import { NextRequest } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
-import { deleteCache } from "@/lib/cache";
+import { clearBlogCache, deleteCache } from "@/lib/cache";
 import { ImageKitService } from "@/services/imagekit";
 import { sendErrorResponse, sendSuccessResponse } from "@/services/apiResponse";
 import BlogModel from "@/models/blog.model";
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     // ==========================
     // Clear Redis cache
     // ==========================
-    await deleteCache("blogs:published");
+    await clearBlogCache();
     await deleteCache(`blog:url:${url}`);
 
     return sendSuccessResponse("Blog Created Successfully", { blog });

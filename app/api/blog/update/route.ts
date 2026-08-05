@@ -36,7 +36,6 @@ export async function POST(req: NextRequest) {
     // Keep old URL for Redis invalidation
     const oldUrl = blog.url;
 
-
     // Text fields
     const title = formData.get("title") as string;
     const author = formData.get("author") as string;
@@ -112,43 +111,22 @@ export async function POST(req: NextRequest) {
 
     await blog.save();
 
-
-    // ============================
-    // Redis Cache Invalidation
-    // ============================
-
-    // Remove old URL cache
-    await deleteCache(
-      `blog:url:${oldUrl}`
-    );
-
-
-    // Remove new URL cache
-    await deleteCache(
-      `blog:url:${blog.url}`
-    );
-
-
-    // Remove blog list caches
+    // ==========================
+    // Clear Redis Cache
+    // ==========================
     await clearBlogCache();
-
-
+    if (oldUrl) {
+      await deleteCache(`blog:url:${oldUrl}`);
+    }
+    if (blog.url && blog.url !== oldUrl) {
+      await deleteCache(`blog:url:${blog.url}`);
+    }
 
     return sendSuccessResponse(
       "Blog updated successfully",
-      {
-        blog,
-      }
+      { blog }
     );
-
-
   } catch (error: any) {
-
-    console.error(
-      "Update Blog Error:",
-      error
-    );
-
     return sendErrorResponse(
       error?.message || "Unexpected error",
       200

@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
         const cachedBlog = await getCache<any>(cacheKey);
 
         if (cachedBlog) {
-            console.log("✅ Blog Cache HIT");
+            console.log("✅ Get Blog by Url Cache HIT");
 
             return sendSuccessResponse(
                 "Blog fetched successfully (cache)",
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        console.log("❌ Blog Cache MISS");
+        console.log("❌ Get Blog by Url Cache MISS");
 
         // Connect MongoDB only on cache miss
         await connectDB();

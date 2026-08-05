@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import { sendErrorResponse, sendSuccessResponse } from "@/services/apiResponse";
 import ProjectModel from "@/models/project.model";
 import { ImageKitService } from "@/services/imagekit";
+import { clearProjectCache, deleteCache } from "@/lib/cache";
 
 
 export async function POST(req: NextRequest) {
@@ -93,6 +94,14 @@ export async function POST(req: NextRequest) {
             },
             { new: true, runValidators: true }
         );
+
+        // ==========================
+        // Clear Redis Cache
+        // ==========================
+        await clearProjectCache();
+        if (targetProject.slug) {
+            await deleteCache(`project:slug:${targetProject.slug}`);
+        }
 
         return sendSuccessResponse("Images added successfully.", updatedItem);
 

@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
+import { clearProjectCache, deleteCache } from "@/lib/cache";
 import { sendErrorResponse, sendSuccessResponse } from "@/services/apiResponse";
 import ProjectModel from "@/models/project.model";
 
@@ -27,6 +28,14 @@ export async function POST(req: NextRequest) {
 
         if (!updatedProject) {
             return sendErrorResponse("Project not found", 200);
+        }
+
+        // ==========================
+        // Clear Redis Cache
+        // ==========================
+        await clearProjectCache();
+        if (updatedProject.slug) {
+            await deleteCache(`project:slug:${updatedProject.slug}`);
         }
 
         return sendSuccessResponse(

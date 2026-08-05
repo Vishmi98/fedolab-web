@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import { ImageKitService } from "@/services/imagekit";
 import { sendErrorResponse, sendSuccessResponse } from "@/services/apiResponse";
 import ProjectModel from "@/models/project.model";
+import { clearProjectCache, deleteCache } from "@/lib/cache";
 
 
 export async function POST(req: NextRequest) {
@@ -35,6 +36,8 @@ export async function POST(req: NextRequest) {
         200
       );
     }
+
+    const oldSlug = project.slug;
 
     const title = formData.get("title") as string;
     const slug = formData.get("slug") as string;
@@ -131,6 +134,17 @@ export async function POST(req: NextRequest) {
     }
 
     await project.save();
+
+    // ==========================
+    // Clear Redis Cache
+    // ==========================
+    await clearProjectCache();
+    if (oldSlug) {
+      await deleteCache(`project:slug:${oldSlug}`);
+    }
+    if (project.slug && project.slug !== oldSlug) {
+      await deleteCache(`project:slug:${project.slug}`);
+    }
 
     return sendSuccessResponse(
       "Project updated successfully",

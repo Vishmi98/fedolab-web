@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import { ImageKitService } from "@/services/imagekit";
 import { sendErrorResponse, sendSuccessResponse } from "@/services/apiResponse";
 import ProjectModel from "@/models/project.model";
+import { clearProjectCache, deleteCache } from "@/lib/cache";
 
 
 export async function POST(req: NextRequest) {
@@ -88,6 +89,12 @@ export async function POST(req: NextRequest) {
       coverImagePath,
       coverImageId
     });
+
+    // ==========================
+    // Clear Redis Cache
+    // ==========================
+    await clearProjectCache(); // Clears projects:published, projects:page:*, etc.
+    await deleteCache(`project:slug:${slug}`); // In case the slug was cached previously
 
     return sendSuccessResponse(
       "Project created successfully",

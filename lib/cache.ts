@@ -26,17 +26,19 @@ export async function deleteCache(key: string) {
 }
 
 export async function clearBlogCache() {
-    const keys = await redis.keys(
-        "blogs:*"
-    );
+    const keys = await redis.keys("blogs:*");
 
     if (keys.length > 0) {
-        console.log(
-            "CLEAR BLOG CACHE:",
-            keys
-        );
-        await redis.del(
-            ...keys
-        );
+        console.log("CLEAR BLOG CACHE:", keys);
+        await redis.del(...keys);
+    }
+}
+
+export async function clearProjectCache() {
+    const keys = await redis.keys("projects:*");
+
+    if (keys.length > 0) {
+        console.log("CLEAR PROJECT CACHE:", keys);
+        await redis.del(...keys);
     }
 }

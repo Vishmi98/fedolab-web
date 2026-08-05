@@ -17,18 +17,79 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
   ComposedChart,
+  Bar,
+  Cell,
 } from 'recharts';
 
 import { formatNumber } from '@/lib/formatters';
 import { StockDetails, StockHistoryPoint } from '@/modules/stocks/stock.types';
 
+
 const PERIODS = ['1d', '1w', '1m', '3m', '1y', '3y', '5y'];
+
+/**
+ * Custom SVG Candlestick Shape for Recharts
+ */
+const CustomCandle = (props: any) => {
+  const { x, width, yAxis, payload } = props;
+
+  const { open, close, high, low } = payload || {};
+
+  if (
+    open === undefined ||
+    close === undefined ||
+    high === undefined ||
+    low === undefined ||
+    !yAxis ||
+    !yAxis.scale
+  ) {
+    return null;
+  }
+
+  const isBullish = close >= open;
+  const color = isBullish ? '#10b981' : '#f43f5e';
+
+  const yOpen = yAxis.scale(open);
+  const yClose = yAxis.scale(close);
+  const yHigh = yAxis.scale(high);
+  const yLow = yAxis.scale(low);
+
+  const candleTop = Math.min(yOpen, yClose);
+  const candleBottom = Math.max(yOpen, yClose);
+  const candleHeight = Math.max(2, candleBottom - candleTop);
+
+  const candleWidth = Math.max(3, width * 0.5);
+  const candleX = x + (width - candleWidth) / 2;
+  const wickX = x + width / 2;
+
+  return (
+    <g>
+      {/* High-Low Wick */}
+      <line
+        x1={wickX}
+        y1={yHigh}
+        x2={wickX}
+        y2={yLow}
+        stroke={color}
+        strokeWidth={1.5}
+      />
+      {/* Open-Close Body */}
+      <rect
+        x={candleX}
+        y={candleTop}
+        width={candleWidth}
+        height={candleHeight}
+        fill={color}
+        rx={1}
+      />
+    </g>
+  );
+};
 
 export default function StockDetailPage({
   params,
@@ -82,6 +143,44 @@ export default function StockDetailPage({
     fetchStockHistory(selectedPeriod);
   }, [symbol, selectedPeriod]);
 
+  const formatXAxis = (tickItem: string) => {
+    if (!tickItem) return '';
+
+    // Handle YYYY-MM-DD strings without UTC timezone offset shifts
+    const parts = tickItem.split('-');
+    let date: Date;
+
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      date = new Date(year, month, day);
+    } else {
+      date = new Date(tickItem);
+    }
+
+    if (isNaN(date.getTime())) return tickItem;
+
+    switch (selectedPeriod) {
+      case '1d':
+        // If data only has YYYY-MM-DD, fall back to short date representation
+        return tickItem.includes('T')
+          ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      case '1w':
+        return date.toLocaleDateString([], { weekday: 'short', day: 'numeric' });
+      case '1m':
+      case '3m':
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      case '1y':
+      case '3y':
+      case '5y':
+        return date.toLocaleDateString([], { month: 'short', year: '2-digit' });
+      default:
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  };
+
   if (loading && !details) {
     return (
       <div className="flex h-96 w-full items-center justify-center bg-gray-50">
@@ -106,22 +205,11 @@ export default function StockDetailPage({
 
   const isPositive = details.change >= 0;
 
-  // Transform OHLC data for Candlestick visualization
-  const candleChartData = history.map((item) => {
-    const isBullish = item.close >= item.open;
-    return {
-      ...item,
-      wickMin: item.low,
-      wickMax: item.high,
-      bodyMin: Math.min(item.open, item.close),
-      bodyHeight: Math.max(0.01, Math.abs(item.close - item.open)),
-      candleColor: isBullish ? '#10b981' : '#f43f5e',
-    };
-  });
+  const minPrice = history.length ? Math.min(...history.map((d) => d.low)) * 0.99 : 'auto';
+  const maxPrice = history.length ? Math.max(...history.map((d) => d.high)) * 1.01 : 'auto';
 
   return (
     <div className="w-[90%] mx-auto py-20 space-y-6 min-h-screen">
-      {/* Back Navigation */}
       <div>
         <Link
           href="/stocks"
@@ -131,7 +219,6 @@ export default function StockDetailPage({
         </Link>
       </div>
 
-      {/* Main Stock Header Card */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -143,7 +230,6 @@ export default function StockDetailPage({
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">{details.name}</h1>
         </div>
 
-        {/* Price & Day Change */}
         <div className="flex items-baseline gap-4">
           <div>
             <div className="text-3xl font-black text-gray-900">
@@ -168,23 +254,23 @@ export default function StockDetailPage({
         </div>
       </div>
 
-      {/* Main Grid: Interactive Chart + Key Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Interactive Price Chart Section */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <BarChart2 className="w-5 h-5 text-blue-600" /> Share Price Chart
-            </h2>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white rounded-xl">
+            <div className="flex items-center gap-2 shrink-0">
+              <BarChart2 className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Share Price Chart
+              </h2>
+            </div>
 
-            <div className="flex flex-row sm:items-center gap-3 w-full">
-              {/* Chart Mode Switcher */}
-              <div className="flex items-center bg-gray-100 p-1 rounded-xl w-fit">
+            <div className="flex flex-row items-center gap-3 lg:justify-end">
+              <div className="flex items-center bg-gray-100 rounded-lg p-1 shrink-0">
                 <button
                   onClick={() => setChartType('line')}
-                  className={`p-2 rounded-lg transition ${chartType === 'line'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-900'
+                  className={`p-1.5 rounded-md transition-colors ${chartType === 'line'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
                     }`}
                   title="Line Chart"
                 >
@@ -193,9 +279,9 @@ export default function StockDetailPage({
 
                 <button
                   onClick={() => setChartType('candlestick')}
-                  className={`p-2 rounded-lg transition ${chartType === 'candlestick'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-900'
+                  className={`p-1.5 rounded-md transition-colors ${chartType === 'candlestick'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
                     }`}
                   title="Candlestick Chart"
                 >
@@ -203,16 +289,15 @@ export default function StockDetailPage({
                 </button>
               </div>
 
-              {/* Timeframe Selector */}
-              <div className="flex-1 overflow-x-auto scrollbar-hide">
-                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-max min-w-full sm:min-w-0">
+              <div className="overflow-x-auto scrollbar-hide">
+                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-max">
                   {PERIODS.map((period) => (
                     <button
                       key={period}
                       onClick={() => setSelectedPeriod(period)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition uppercase whitespace-nowrap ${selectedPeriod === period
-                          ? 'bg-white text-blue-600 shadow-sm'
-                          : 'text-gray-500 hover:text-gray-900'
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md whitespace-nowrap transition-colors ${selectedPeriod === period
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
                         }`}
                     >
                       {period}
@@ -223,8 +308,7 @@ export default function StockDetailPage({
             </div>
           </div>
 
-          {/* Recharts Render */}
-          <div className="h-72 w-full pt-4 relative">
+          <div className="h-80 w-full pt-4 relative">
             {historyLoading && (
               <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10">
                 <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
@@ -234,7 +318,7 @@ export default function StockDetailPage({
             {history.length > 0 ? (
               chartType === 'line' ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={history}>
+                  <AreaChart data={history} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                         <stop
@@ -255,14 +339,17 @@ export default function StockDetailPage({
                       tickLine={false}
                       axisLine={false}
                       tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      tickFormatter={formatXAxis}
+                      interval={0}
+                      padding={{ left: 20, right: 20 }}
                     />
                     <YAxis
-                      domain={['auto', 'auto']}
+                      domain={[minPrice, maxPrice]}
                       orientation="right"
                       tickLine={false}
                       axisLine={false}
                       tick={{ fontSize: 11, fill: '#94a3b8' }}
-                      tickFormatter={(val) => `LKR ${val}`}
+                      tickFormatter={(val) => `${val.toFixed(1)}`}
                     />
                     <Tooltip
                       contentStyle={{
@@ -271,7 +358,7 @@ export default function StockDetailPage({
                         color: '#fff',
                         border: 'none',
                       }}
-                      formatter={(value: any) => [`LKR ${value}`, 'Close Price']}
+                      formatter={(value: any) => [`LKR ${Number(value).toFixed(2)}`, 'Close Price']}
                     />
                     <Area
                       type="monotone"
@@ -284,46 +371,66 @@ export default function StockDetailPage({
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                /* Candlestick Chart representation */
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={candleChartData}>
+                  <ComposedChart data={history} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis
                       dataKey="date"
                       tickLine={false}
                       axisLine={false}
                       tick={{ fontSize: 11, fill: '#94a3b8' }}
+                      tickFormatter={formatXAxis}
                     />
                     <YAxis
-                      domain={['auto', 'auto']}
+                      domain={[minPrice, maxPrice]}
                       orientation="right"
                       tickLine={false}
                       axisLine={false}
                       tick={{ fontSize: 11, fill: '#94a3b8' }}
-                      tickFormatter={(val) => `LKR ${val}`}
+                      tickFormatter={(val) => `${val.toFixed(1)}`}
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#1e293b',
-                        borderRadius: '12px',
-                        color: '#fff',
-                        border: 'none',
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload as StockHistoryPoint;
+                          const isUp = data.close >= data.open;
+                          return (
+                            <div className="bg-slate-800 text-white p-3 rounded-xl text-xs space-y-1 shadow-lg">
+                              <p className="font-semibold text-slate-300 border-b border-slate-700 pb-1 mb-1">{data.date}</p>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                <span className="text-slate-400">Open:</span>
+                                <span className="font-mono text-right">LKR {data.open.toFixed(2)}</span>
+                                <span className="text-slate-400">High:</span>
+                                <span className="font-mono text-right text-emerald-400">LKR {data.high.toFixed(2)}</span>
+                                <span className="text-slate-400">Low:</span>
+                                <span className="font-mono text-right text-rose-400">LKR {data.low.toFixed(2)}</span>
+                                <span className="text-slate-400">Close:</span>
+                                <span className={`font-mono text-right ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                  LKR {data.close.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
                       }}
-                      formatter={(value: any, name: any) => [`LKR ${value}`, name.toUpperCase()]}
                     />
-                    <Bar dataKey="bodyHeight" fill="#10b981" />
+                    <Bar dataKey="high" shape={<CustomCandle />}>
+                      {history.map((entry, index) => (
+                        <Cell key={`cell-${index}`} />
+                      ))}
+                    </Bar>
                   </ComposedChart>
                 </ResponsiveContainer>
               )
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-gray-400">
-                Historical snapshot data accumulating...
+                No historical snapshot data found for this period.
               </div>
             )}
           </div>
         </div>
 
-        {/* Market Key Statistics Panel */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
           <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
             <Activity className="w-5 h-5 text-blue-600" /> Market Statistics

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
             const cached = await getCache<any>(cacheKey);
 
             if (cached) {
-                console.log("✅ Pagination Cache HIT");
+                console.log("✅ Pagination Blogs Cache HIT");
 
                 return sendSuccessResponse(
                     "Blogs fetched successfully (cache)",
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
                 );
             }
 
-            console.log("❌ Pagination Cache MISS");
+            console.log("❌ Pagination Blogs Cache MISS");
 
             const totalBlogs = await BlogModel.countDocuments();
             const totalPages = Math.ceil(totalBlogs / limit);
